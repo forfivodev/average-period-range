@@ -1,0 +1,646 @@
+//@version=5
+//
+// Average Period Range (APR) Indicator for TradingView
+// This script is based on the "Best APR Indicator for MT4" described at https://www.fxdayjob.com/best-apr-indicator-mt4.
+//
+// -----------------------------------------------------------------------------
+// © sherwind 2017
+// © GM 2023
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+// 
+// The GNU General Public License can be found here
+// <http://www.gnu.org/licenses/>.
+//
+//
+
+indicator(title="Average Period Range", shorttitle="APR", overlay=true, max_lines_count=500, max_labels_count=500)
+
+short_mode_apr              = input.bool(true, "Short mode")
+box_mode_apr                = input.bool(true, "Box mode")
+input_start_apr             = input.int(0, "Start", -9999999999, 9999999999, 1, inline = "box_position", tooltip = "Box start bar")
+input_end_apr               = input.int(7, "End", -9999999999, 9999999999, 1, inline = "box_position", tooltip = "Box end bar")
+
+useVariance                 = input.string("Standard Deviation", title = "Zones Calculation", options=["Standard Deviation", "Variance"]) == "Variance"
+
+tf_apr1                     = input.string("D", "TF", ["1", "5", "15", "30", "60", "120", "240", "D", "2D", "3D", "4D", "5D", "W", "M", "3M", "6M", "12M"], inline='daily')
+daily_apr                   = input.int(title="N", defval=1, minval=0, inline = "daily")
+daily_apr_length            = input.int(title="P", defval=500, minval=0, inline = "daily")
+daily_apr_color_high        = input.color(title="H", defval=color.rgb(0, 225, 187, 20), inline = "daily")
+daily_apr_color_low         = input.color(title="L", defval=color.rgb(0, 221, 225, 20), inline = "daily")
+showStDev_1_D               = input(false, title="1", inline = "dailydp")
+showStDev_2_D               = input(false, title="2",inline = "dailydp")
+showStDev_3_D               = input(true, title="3",inline = "dailydp")
+showStDev_4_D               = input(true, title="4",inline = "dailydp")
+showStDev_5_D               = input(true, title="5",inline = "dailydp")
+showStDev_6_D               = input(true, title="6",inline = "dailydp")
+showStDev_7_D               = input(true, title="7",inline = "dailydp")
+showStDev_8_D               = input(true, title="8",inline = "dailydp")
+showStDev_9_D               = input(true, title="9",inline = "dailydp")
+showStDev_10_D              = input(true, title="10",inline = "dailydp")
+
+tf_apr2                     = input.string("W", "TF", ["1", "5", "15", "30", "60", "120", "240", "D", "2D", "3D", "4D", "5D", "W", "M", "3M", "6M", "12M"], inline='weekly')
+weekly_apr                  = input.int(title="N", defval=0, minval=0, inline = "weekly")
+weekly_apr_length           = input.int(title="P", defval=500, minval=0, inline = "weekly")
+weekly_apr_color_high       = input.color(title="H", defval=color.rgb(255, 166, 0, 20), inline = "weekly")
+weekly_apr_color_low        = input.color(title="L", defval=color.rgb(255, 166, 0, 20), inline = "weekly")
+showStDev_1_W               = input(true, title="1", inline = "weeklydp")
+showStDev_2_W               = input(true, title="2",inline = "weeklydp")
+showStDev_3_W               = input(true, title="3",inline = "weeklydp")
+showStDev_4_W               = input(true, title="4",inline = "weeklydp")
+showStDev_5_W               = input(true, title="5",inline = "weeklydp")
+showStDev_6_W               = input(true, title="6",inline = "weeklydp")
+showStDev_7_W               = input(true, title="7",inline = "weeklydp")
+showStDev_8_W               = input(true, title="8",inline = "weeklydp")
+showStDev_9_W               = input(true, title="9",inline = "weeklydp")
+showStDev_10_W              = input(true, title="10",inline = "weeklydp")
+
+tf_apr3                     = input.string("M", "TF", ["1", "5", "15", "30", "60", "120", "240", "D", "2D", "3D", "4D", "5D", "W", "M", "3M", "6M", "12M"], inline='monthly')
+monthly_apr                 = input.int(title="N", defval=0, minval=0, inline = "monthly")
+monthly_apr_length          = input.int(title="P", defval=100, minval=0, inline = "monthly")
+monthly_apr_color_high      = input.color(title="H", defval=color.rgb(136, 0, 255, 20), inline = "monthly")
+monthly_apr_color_low       = input.color(title="L", defval=color.rgb(136, 0, 255, 20), inline = "monthly")
+showStDev_1_M               = input(true, title="1", inline = "monthlydp")
+showStDev_2_M               = input(true, title="2",inline = "monthlydp")
+showStDev_3_M               = input(true, title="3",inline = "monthlydp")
+showStDev_4_M               = input(true, title="4",inline = "monthlydp")
+showStDev_5_M               = input(true, title="5",inline = "monthlydp")
+showStDev_6_M               = input(true, title="6",inline = "monthlydp")
+showStDev_7_M               = input(true, title="7",inline = "monthlydp")
+showStDev_8_M               = input(true, title="8",inline = "monthlydp")
+showStDev_9_M               = input(true, title="9",inline = "monthlydp")
+showStDev_10_M              = input(true, title="10",inline = "monthlydp")
+
+tf_apr4                     = input.string("12M", "TF", ["1", "5", "15", "30", "60", "120", "240", "D", "2D", "3D", "4D", "5D", "W", "M", "3M", "6M", "12M"], inline='yearly')
+yearly_apr                  = input.int(title="N", defval=0, minval=0, inline = "yearly")
+yearly_apr_length           = input.int(title="P", defval=11, minval=0, inline = "yearly")
+yearly_apr_color_high       = input.color(title="H", defval=color.rgb(255, 0, 242, 20), inline = "yearly")
+yearly_apr_color_low        = input.color(title="L", defval=color.rgb(255, 0, 242, 20), inline = "yearly")
+showStDev_1_Y               = input(true, title="1", inline = "yearlydp")
+showStDev_2_Y               = input(true, title="2",inline = "yearlydp")
+showStDev_3_Y               = input(true, title="3",inline = "yearlydp")
+showStDev_4_Y               = input(true, title="4",inline = "yearlydp")
+showStDev_5_Y               = input(true, title="5",inline = "yearlydp")
+showStDev_6_Y               = input(true, title="6",inline = "yearlydp")
+showStDev_7_Y               = input(true, title="7",inline = "yearlydp")
+showStDev_8_Y               = input(true, title="8",inline = "yearlydp")
+showStDev_9_Y               = input(true, title="9",inline = "yearlydp")
+showStDev_10_Y              = input(true, title="10",inline = "yearlydp")
+
+show_apr                    = input.bool(true, 'APR', inline='apr')
+style_string_0              = input.string("Solid", "Style", options = ["Dotted","Dashed","Solid"], inline='apr')
+width_0                     = input.int(4, "Width", 1, 10, 1, inline='apr')
+
+showStDev_1                 = input.bool(true, '', inline='stDev1')
+stDev_1                     = input.float(-2, '1 Dp', inline='stDev1', step=0.1)
+style_string_1              = input.string("Solid", "Style", options = ["Dotted","Dashed","Solid"], inline='stDev1')
+width_1                     = input.int(2, "Width", 1, 10, 1, inline='stDev1')
+
+showStDev_2                 = input.bool(true, '', inline='stDev2')
+stDev_2                     = input.float(-1.5, '2 Dp', inline='stDev2', step=0.1)
+style_string_2              = input.string("Solid", "Style", options = ["Dotted","Dashed","Solid"], inline='stDev2')
+width_2                     = input.int(2, "Width", 1, 10, 1, inline='stDev2')
+
+showStDev_3                 = input.bool(true, '', inline='stDev3')
+stDev_3                     = input.float(-1, '3 Dp', inline='stDev3', step=0.1)
+style_string_3              = input.string("Solid", "Style", options = ["Dotted","Dashed","Solid"], inline='stDev3')
+width_3                     = input.int(2, "Width", 1, 10, 1, inline='stDev3')
+
+showStDev_4                 = input.bool(true, '', inline='stDev4')
+stDev_4                     = input.float(-0.5, '4 Dp', inline='stDev4', step=0.1)
+style_string_4              = input.string("Solid", "Style", options = ["Dotted","Dashed","Solid"], inline='stDev4')
+width_4                     = input.int(2, "Width", 1, 10, 1, inline='stDev4')
+
+showStDev_5                 = input.bool(true, '', inline='stDev5')
+stDev_5                     = input.float(0.5, '5 Dp', inline='stDev5', step=0.1)
+style_string_5              = input.string("Solid", "Style", options = ["Dotted","Dashed","Solid"], inline='stDev5')
+width_5                     = input.int(2, "Width", 1, 10, 1, inline='stDev5')
+
+showStDev_6                 = input.bool(true, '', inline='stDev6')
+stDev_6                     = input.float(1, '6 Dp', inline='stDev6', step=0.1)
+style_string_6              = input.string("Solid", "Style", options = ["Dotted","Dashed","Solid"], inline='stDev6')
+width_6                     = input.int(2, "Width", 1, 10, 1, inline='stDev6')
+
+showStDev_7                 = input.bool(true, '', inline='stDev7')
+stDev_7                     = input.float(1.5, '7 Dp', inline='stDev7', step=0.1)
+style_string_7              = input.string("Solid", "Style", options = ["Dotted","Dashed","Solid"], inline='stDev7')
+width_7                     = input.int(2, "Width", 1, 10, 1, inline='stDev7')
+
+showStDev_8                 = input.bool(true, '', inline='stDev8')
+stDev_8                     = input.float(2, '8 Dp', inline='stDev8', step=0.1)
+style_string_8              = input.string("Solid", "Style", options = ["Dotted","Dashed","Solid"], inline='stDev8')
+width_8                     = input.int(2, "Width", 1, 10, 1, inline='stDev8')
+
+showStDev_9                 = input.bool(true, '', inline='stDev9')
+stDev_9                     = input.float(2.5, '9 Dp', inline='stDev9', step=0.1)
+style_string_9              = input.string("Solid", "Style", options = ["Dotted","Dashed","Solid"], inline='stDev9')
+width_9                     = input.int(2, "Width", 1, 10, 1, inline='stDev9')
+
+showStDev_10                = input.bool(true, '', inline='stDev10')
+stDev_10                    = input.float(3, '10 Dp', inline='stDev10', step=0.1)
+style_string_10             = input.string("Solid", "Style", options = ["Dotted","Dashed","Solid"], inline='stDev10')
+width_10                    = input.int(2, "Width", 1, 10, 1, inline='stDev10')
+
+is_forex_pips               = input.bool(title="Display average temp_range as forex pips?", defval=true)
+
+showHigh                    = input.bool(true, 'H/L', inline='highlow')
+period_high_color           = input.color(#646363b8, "High", inline="highlow")
+period_low_color            = input.color(#646363b8, "Low", inline="highlow")
+style_string_high_low       = input.string("Solid", "Style", options = ["Dotted","Dashed","Solid"], inline='highlow')
+width_high_low              = input.int(2, "Width", 1, 10, 1, inline='highlow')
+
+fillOpenVisibility          = 100 - input.int(10, minval=0, maxval=100, step=1, title='Open to APR Fill Visibility', group="Style")
+lineVisibility              = 100 - input.int(70, minval=0, maxval=100, step=5, title='Line Visibility', group="Style")
+fillVisibility              = 100 - input.int(25, minval=0, maxval=100, step=1, title='Fill Visibility', group="Style")
+scaledVisibility = fillVisibility + (100 - fillVisibility) / 100
+scaledLineVisibility = lineVisibility + (100 - lineVisibility) / 100
+scaledOpenFillVisibility = fillOpenVisibility + (100 - fillOpenVisibility) / 100
+
+line_style_0        = style_string_0 == 'Dotted' ? line.style_dotted : style_string_0 == 'Dashed' ? line.style_dashed : line.style_solid
+line_style_1        = style_string_1 == 'Dotted' ? line.style_dotted : style_string_1 == 'Dashed' ? line.style_dashed : line.style_solid
+line_style_2        = style_string_2 == 'Dotted' ? line.style_dotted : style_string_2 == 'Dashed' ? line.style_dashed : line.style_solid
+line_style_3        = style_string_3 == 'Dotted' ? line.style_dotted : style_string_3 == 'Dashed' ? line.style_dashed : line.style_solid
+line_style_4        = style_string_4 == 'Dotted' ? line.style_dotted : style_string_4 == 'Dashed' ? line.style_dashed : line.style_solid
+line_style_5        = style_string_5 == 'Dotted' ? line.style_dotted : style_string_5 == 'Dashed' ? line.style_dashed : line.style_solid
+line_style_6        = style_string_6 == 'Dotted' ? line.style_dotted : style_string_6 == 'Dashed' ? line.style_dashed : line.style_solid
+line_style_7        = style_string_7 == 'Dotted' ? line.style_dotted : style_string_7 == 'Dashed' ? line.style_dashed : line.style_solid
+line_style_8        = style_string_8 == 'Dotted' ? line.style_dotted : style_string_8 == 'Dashed' ? line.style_dashed : line.style_solid
+line_style_9        = style_string_9 == 'Dotted' ? line.style_dotted : style_string_9 == 'Dashed' ? line.style_dashed : line.style_solid
+line_style_10       = style_string_10 == 'Dotted' ? line.style_dotted : style_string_10 == 'Dashed' ? line.style_dashed : line.style_solid
+line_style_high_low = style_string_high_low == 'Dotted' ? line.style_dotted : style_string_high_low == 'Dashed' ? line.style_dashed : line.style_solid
+//line_style_open        = style_string_open == 'Dotted' ? line.style_dotted : style_string_open == 'Dashed' ? line.style_dashed : line.style_solid
+
+//▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+f_security(_sym, _res, _src) =>
+    request.security(_sym, _res, _src[barstate.isrealtime ? 1 : 0], barmerge.gaps_off, lookahead=barmerge.lookahead_off)[barstate.isrealtime ? 0 : 1]
+f_security_lookahead(_sym, _res, _src) =>
+    request.security(_sym, _res, _src[barstate.isrealtime ? 1 : 0], barmerge.gaps_off, lookahead=barmerge.lookahead_on)[barstate.isrealtime ? 0 : 1]
+//▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+var i_timeframe = "D"
+var string ticker = syminfo.tickerid
+
+i_timeframe := tf_apr1
+dayRange = f_security(ticker, i_timeframe, high - low)
+//avgRangeD  = f_security(ticker, i_timeframe, ta.sma(dayRange, daily_apr_length))
+dailyRange_stDev      = f_security(ticker, i_timeframe, ta.stdev(high - low, daily_apr_length))
+dailyRange_variance   = f_security(ticker, i_timeframe, ta.variance(high - low, daily_apr_length))
+
+i_timeframe := tf_apr2
+weekRange = f_security(ticker, i_timeframe, high - low)
+//avgRangeW  = f_security(ticker, i_timeframe, ta.sma(weekRange, weekly_apr_length))
+weeklyRange_stDev      = f_security(ticker, i_timeframe, ta.stdev(high - low, weekly_apr_length))
+weeklyRange_variance   = f_security(ticker, i_timeframe, ta.variance(high - low, weekly_apr_length))
+
+i_timeframe := tf_apr3
+monthRange = f_security(ticker, i_timeframe, high - low)
+//avgRangeM  = f_security(ticker, i_timeframe, ta.sma(monthRange, monthly_apr_length))
+monthlyRange_stDev      = f_security(ticker, i_timeframe, ta.stdev(high - low, monthly_apr_length))
+monthlyRange_variance   = f_security(ticker, i_timeframe, ta.variance(high - low, monthly_apr_length))
+
+i_timeframe := tf_apr4
+yearRange = f_security(ticker, i_timeframe, high - low)
+//avgRangeY  = f_security(ticker, i_timeframe, ta.sma(yearRange, yearly_apr_length))
+yearlyRange_stDev      = f_security(ticker, i_timeframe, ta.stdev(high - low, yearly_apr_length))
+yearlyRange_variance   = f_security(ticker, i_timeframe, ta.variance(high - low, yearly_apr_length))
+
+
+new_bar(res) =>
+    ta.change(time(res)) != 0
+apr(length) =>
+    temp_range = high - low
+    ta.sma(temp_range[1], length)
+apr_high(apr) =>
+    high - low < apr ? low + apr : close >= open ? low + apr : high
+apr_low(apr) =>
+    high - low < apr ? high - apr : close >= open ? low : high - apr
+apr_levels(length) =>
+    _apr = apr(length) 
+    [_apr, apr_high(_apr), apr_low(_apr)]
+to_pips(val) =>
+    is_forex_pips ? val/syminfo.mintick/10 : val/syminfo.mintick
+tick_format() =>
+    _s = str.tostring(syminfo.mintick)
+    _s := str.replace_all(_s, "25", "00")
+    _s := str.replace_all(_s, "5",  "0")
+    _s := str.replace_all(_s, "1",  "0")
+draw_apr_hilo(hi_level, lo_level, stdev, res, apr, level_color_up, level_color_down, show_count, prefix, p_width, p_style) =>
+    _bar_start = bar_index + input_start_apr
+    _bar_end = _bar_start + input_end_apr
+    var line hi_line = na
+    var line lo_line = na
+    var ary_range_label1 = array.new_label(show_count)
+    var ary_range_label2 = array.new_label(show_count)
+    var ary_hi_line = array.new_line(show_count)
+    var ary_lo_line = array.new_line(show_count)
+    if new_bar(res)
+        line.set_x2(hi_line, _bar_start)
+        line.set_x2(lo_line, _bar_start)
+        line.set_extend(hi_line, extend.none)
+        line.set_extend(lo_line, extend.none)
+        hi_line := line.new(_bar_start, hi_level, _bar_end, hi_level, extend=extend.none, color=level_color_up, style = p_style, width = p_width)
+        lo_line := line.new(_bar_start, lo_level, _bar_end, lo_level, extend=extend.none, color=level_color_down, style = p_style, width = p_width)
+        range_label1 = label.new(_bar_start, hi_level, prefix + ": " + str.tostring(apr, tick_format()) + " - Stdev:  " + str.tostring(stdev, tick_format()) + "\n\n", color=color(na), style=label.style_label_left, textalign=text.align_left, textcolor  = color(level_color_up))
+        range_label2 = label.new(_bar_start, lo_level, prefix + ": " + str.tostring(apr, tick_format()) + " - Stdev:  " + str.tostring(stdev, tick_format()) + "\n\n", color=color(na), style=label.style_label_left, textalign=text.align_left, textcolor  = color(level_color_up))
+        array.push(ary_hi_line, hi_line)
+        array.push(ary_lo_line, lo_line)
+        array.push(ary_range_label1, range_label1)
+        array.push(ary_range_label2, range_label2)
+        line.delete(array.shift(ary_hi_line))
+        line.delete(array.shift(ary_lo_line))
+        label.delete(array.shift(ary_range_label1))
+        label.delete(array.shift(ary_range_label2))
+
+    if not na(hi_line) and line.get_x2(hi_line) != _bar_start
+        line.set_x2(hi_line, _bar_start) 
+        line.set_x2(lo_line, _bar_start)
+
+draw_apr_stdev(hi_level, lo_level, stdev, res, apr, level_color_up, level_color_down, show_count, prefix, p_width, p_style) =>
+    _bar_start = bar_index + input_start_apr
+    _bar_end = _bar_start + input_end_apr
+    var line hi_line = na
+    var line lo_line = na
+    var ary_range_label1 = array.new_label(show_count)
+    var ary_range_label2 = array.new_label(show_count)
+    var ary_hi_line = array.new_line(show_count)
+    var ary_lo_line = array.new_line(show_count)
+    var period_stdev = dailyRange_stDev
+    var label range_label1 = na
+    var label range_label2 = na
+
+    if (i_timeframe == tf_apr1)
+        period_stdev := dailyRange_stDev
+    else if (i_timeframe == tf_apr2)
+        period_stdev := weeklyRange_stDev
+    else if (i_timeframe == tf_apr3)
+        period_stdev := monthlyRange_stDev
+    else if (i_timeframe == tf_apr4)
+        period_stdev := yearlyRange_stDev
+    
+    if new_bar(res)
+        line.set_x2(hi_line, _bar_start)
+        line.set_x2(lo_line, _bar_start)
+        line.set_extend(hi_line, extend.none)
+        line.set_extend(lo_line, extend.none)
+        hi_line := line.new(_bar_start, hi_level + stdev, _bar_end, hi_level + stdev, extend=extend.none, color=level_color_up, style = p_style, width = p_width)
+        lo_line := line.new(_bar_start, lo_level - stdev, _bar_end, lo_level - stdev, extend=extend.none, color=level_color_down, style = p_style, width = p_width)
+        if (stdev == 0)
+            range_label1 := label.new(_bar_start, hi_level, "High" + "\n\n", color=color(na), style=label.style_label_left, textalign=text.align_left, textcolor = level_color_up)
+            range_label2 := label.new(_bar_start, lo_level, "Low" + "\n\n", color=color(na), style=label.style_label_left, textalign=text.align_left, textcolor = level_color_down)
+        else
+            range_label1 := label.new(_bar_start, hi_level + stdev, str.tostring(stdev / period_stdev) + "\n\n", color=color(na), style=label.style_label_left, textalign=text.align_left, textcolor = level_color_up)
+            range_label2 := label.new(_bar_start, lo_level - stdev, str.tostring(stdev / period_stdev) + "\n\n", color=color(na), style=label.style_label_left, textalign=text.align_left, textcolor = level_color_down)
+
+        array.push(ary_hi_line, hi_line)
+        array.push(ary_lo_line, lo_line)
+        array.push(ary_range_label1, range_label1)
+        array.push(ary_range_label2, range_label2)
+        line.delete(array.shift(ary_hi_line))
+        line.delete(array.shift(ary_lo_line))
+        label.delete(array.shift(ary_range_label1))
+        label.delete(array.shift(ary_range_label2))
+    if not na(hi_line) and line.get_x2(hi_line) != _bar_start
+        line.set_x2(hi_line, _bar_start)
+        line.set_x2(lo_line, _bar_start)
+
+var color temp_color1 = na
+var color temp_color2 = na
+
+//
+// Daily
+//
+i_timeframe := tf_apr1
+[h1, l1, o1] = request.security(ticker, i_timeframe, [high, low, open], barmerge.gaps_off, barmerge.lookahead_on)
+[day_apr, day_apr_high, day_apr_low] = request.security(syminfo.tickerid, i_timeframe, apr_levels(daily_apr_length), lookahead=barmerge.lookahead_on) 
+previous_day_close = request.security(ticker, i_timeframe, close[2], lookahead=barmerge.lookahead_on)
+if daily_apr > 0
+    highlowrange = math.abs(high - low)
+
+    // show high and low
+    draw_apr_stdev(h1, l1, 0, i_timeframe, day_apr, period_low_color, period_high_color, daily_apr, "APR", width_high_low, line_style_high_low)
+
+    // show avg range
+    draw_apr_hilo(day_apr_high, day_apr_low, dailyRange_stDev, i_timeframe, day_apr, daily_apr_color_high, daily_apr_color_low, daily_apr, "APR", width_0, line_style_0)
+
+    // show stdev_1
+    if (showStDev_1_D)
+        temp_color1 := color.new(color.from_gradient(1, 0, 3, daily_apr_color_high, daily_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(1, 0, 3, daily_apr_color_low, daily_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(day_apr_high, day_apr_low, dailyRange_stDev * stDev_1, i_timeframe, day_apr, temp_color1, temp_color2, daily_apr, "APR", width_1, line_style_1)
+
+    // show stdev_2
+    if (showStDev_2_D)
+        temp_color1 := color.new(color.from_gradient(2, 0, 3, daily_apr_color_high, daily_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(2, 0, 3, daily_apr_color_low, daily_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(day_apr_high, day_apr_low, dailyRange_stDev * stDev_2, i_timeframe, day_apr, temp_color1, temp_color2, daily_apr, "APR", width_2, line_style_2)
+
+    // show stdev_3
+    if (showStDev_3_D)
+        temp_color1 := color.new(color.from_gradient(3, 0, 3, daily_apr_color_high, daily_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(3, 0, 3, daily_apr_color_low, daily_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(day_apr_high, day_apr_low, dailyRange_stDev * stDev_3, i_timeframe, day_apr, temp_color1, temp_color2, daily_apr, "APR", width_3, line_style_3)
+
+    // show stdev_4
+    if (showStDev_4_D)
+        temp_color1 := color.new(color.from_gradient(4, 0, 3, daily_apr_color_high, daily_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(4, 0, 3, daily_apr_color_low, daily_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(day_apr_high, day_apr_low, dailyRange_stDev * stDev_4, i_timeframe, day_apr, temp_color1, temp_color2, daily_apr, "APR", width_4, line_style_4)
+
+    // show stdev_5
+    if (showStDev_5_D)
+        temp_color1 := color.new(color.from_gradient(5, 0, 3, daily_apr_color_high, daily_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(5, 0, 3, daily_apr_color_low, daily_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(day_apr_high, day_apr_low, dailyRange_stDev * stDev_5, i_timeframe, day_apr, temp_color1, temp_color2, daily_apr, "APR", width_5, line_style_5)
+
+    // show stdev_6
+    if (showStDev_6_D)
+        temp_color1 := color.new(color.from_gradient(6, 0, 3, daily_apr_color_high, daily_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(6, 0, 3, daily_apr_color_low, daily_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(day_apr_high, day_apr_low, dailyRange_stDev * stDev_6, i_timeframe, day_apr, temp_color1, temp_color2, daily_apr, "APR", width_6, line_style_6)
+
+    // show stdev_7
+    if (showStDev_7_D)
+        temp_color1 := color.new(color.from_gradient(7, 0, 3, daily_apr_color_high, daily_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(7, 0, 3, daily_apr_color_low, daily_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(day_apr_high, day_apr_low, dailyRange_stDev * stDev_7, i_timeframe, day_apr, temp_color1, temp_color2, daily_apr, "APR", width_7, line_style_7)
+
+    // show stdev_8
+    if (showStDev_8_D)
+        temp_color1 := color.new(color.from_gradient(8, 0, 3, daily_apr_color_high, daily_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(8, 0, 3, daily_apr_color_low, daily_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(day_apr_high, day_apr_low, dailyRange_stDev * stDev_8, i_timeframe, day_apr, temp_color1, temp_color2, daily_apr, "APR", width_8, line_style_8)    
+
+    // show stdev_9
+    if (showStDev_9_D)
+        temp_color1 := color.new(color.from_gradient(9, 0, 3, daily_apr_color_high, daily_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(9, 0, 3, daily_apr_color_low, daily_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(day_apr_high, day_apr_low, dailyRange_stDev * stDev_9, i_timeframe, day_apr, temp_color1, temp_color2, daily_apr, "APR", width_9, line_style_9)
+
+    // show stdev_10
+    if (showStDev_10_D)
+        temp_color1 := color.new(color.from_gradient(10, 0, 3, daily_apr_color_high, daily_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(10, 0, 3, daily_apr_color_low, daily_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(day_apr_high, day_apr_low, dailyRange_stDev * stDev_10, i_timeframe, day_apr, temp_color1, temp_color2, daily_apr, "APR", width_10, line_style_10)     
+
+
+//
+// Weekly
+//
+i_timeframe := tf_apr2
+[h2, l2, o2] = request.security(ticker, i_timeframe, [high, low, open], barmerge.gaps_off, barmerge.lookahead_on)
+[week_apr, week_apr_high, week_apr_low]  = request.security(syminfo.tickerid, i_timeframe, apr_levels(weekly_apr_length), lookahead=barmerge.lookahead_on)
+if (timeframe.isintraday or timeframe.isdaily) and weekly_apr > 0
+    //draw_apr_hilo(week_apr_high, week_apr_low, 0, i_timeframe, week_apr, weekly_apr_color_high, weekly_apr_color_high, weekly_apr, "AWR", width_0, line_style_0)
+
+    // show high and low
+    draw_apr_stdev(h2, l2, 0, i_timeframe, week_apr, period_low_color, period_high_color, weekly_apr, "AWR", width_high_low, line_style_high_low)
+
+    // show avg range
+    draw_apr_hilo(week_apr_high, week_apr_low, weeklyRange_stDev, i_timeframe, week_apr, weekly_apr_color_high, weekly_apr_color_low, weekly_apr, "AWR", width_0, line_style_0)
+
+    // show stdev_1
+    if (showStDev_1_W)
+        temp_color1 := color.new(color.from_gradient(1, 0, 3, weekly_apr_color_high, weekly_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(1, 0, 3, weekly_apr_color_low, weekly_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(week_apr_high, week_apr_low, weeklyRange_stDev * stDev_1, i_timeframe, week_apr, temp_color1, temp_color2, weekly_apr, "AWR", width_1, line_style_1)
+
+    // show stdev_2
+    if (showStDev_2_W)
+        temp_color1 := color.new(color.from_gradient(2, 0, 3, weekly_apr_color_high, weekly_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(2, 0, 3, weekly_apr_color_low, weekly_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(week_apr_high, week_apr_low, weeklyRange_stDev * stDev_2, i_timeframe, week_apr, temp_color1, temp_color2, weekly_apr, "AWR", width_2, line_style_2)
+
+    // show stdev_3
+    if (showStDev_3_W)
+        temp_color1 := color.new(color.from_gradient(3, 0, 3, weekly_apr_color_high, weekly_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(3, 0, 3, weekly_apr_color_low, weekly_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(week_apr_high, week_apr_low, weeklyRange_stDev * stDev_3, i_timeframe, week_apr, temp_color1, temp_color2, weekly_apr, "AWR", width_3, line_style_3)
+
+    // show stdev_4
+    if (showStDev_4_W)
+        temp_color1 := color.new(color.from_gradient(4, 0, 3, weekly_apr_color_high, weekly_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(4, 0, 3, weekly_apr_color_low, weekly_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(week_apr_high, week_apr_low, weeklyRange_stDev * stDev_4, i_timeframe, week_apr, temp_color1, temp_color2, weekly_apr, "AWR", width_4, line_style_4)
+
+    // show stdev_5
+    if (showStDev_5_W)
+        temp_color1 := color.new(color.from_gradient(5, 0, 3, weekly_apr_color_high, weekly_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(5, 0, 3, weekly_apr_color_low, weekly_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(week_apr_high, week_apr_low, weeklyRange_stDev * stDev_5, i_timeframe, week_apr, temp_color1, temp_color2, weekly_apr, "AWR", width_5, line_style_5)
+
+    // show stdev_6
+    if (showStDev_6_W)
+        temp_color1 := color.new(color.from_gradient(6, 0, 3, weekly_apr_color_high, weekly_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(6, 0, 3, weekly_apr_color_low, weekly_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(week_apr_high, week_apr_low, weeklyRange_stDev * stDev_6, i_timeframe, week_apr, temp_color1, temp_color2, weekly_apr, "AWR", width_6, line_style_6)
+
+    // show stdev_7
+    if (showStDev_7_W)
+        temp_color1 := color.new(color.from_gradient(7, 0, 3, weekly_apr_color_high, weekly_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(7, 0, 3, weekly_apr_color_low, weekly_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(week_apr_high, week_apr_low, weeklyRange_stDev * stDev_7, i_timeframe, week_apr, temp_color1, temp_color2, weekly_apr, "AWR", width_7, line_style_7)
+
+    // show stdev_8
+    if (showStDev_8_W)
+        temp_color1 := color.new(color.from_gradient(8, 0, 3, weekly_apr_color_high, weekly_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(8, 0, 3, weekly_apr_color_low, weekly_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(week_apr_high, week_apr_low, weeklyRange_stDev * stDev_8, i_timeframe, week_apr, temp_color1, temp_color2, weekly_apr, "AWR", width_8, line_style_8)    
+
+    // show stdev_9
+    if (showStDev_9_W)
+        temp_color1 := color.new(color.from_gradient(9, 0, 3, weekly_apr_color_high, weekly_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(9, 0, 3, weekly_apr_color_low, weekly_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(week_apr_high, week_apr_low, weeklyRange_stDev * stDev_9, i_timeframe, week_apr, temp_color1, temp_color2, weekly_apr, "AWR", width_9, line_style_9)
+
+    // show stdev_10
+    if (showStDev_10_W)
+        temp_color1 := color.new(color.from_gradient(10, 0, 3, weekly_apr_color_high, weekly_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(10, 0, 3, weekly_apr_color_low, weekly_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(week_apr_high, week_apr_low, weeklyRange_stDev * stDev_10, i_timeframe, week_apr, temp_color1, temp_color2, weekly_apr, "AWR", width_10, line_style_10)   
+
+
+//
+// Monthly
+//
+i_timeframe := tf_apr3
+[h3, l3, o3] = request.security(ticker, i_timeframe, [high, low, open], barmerge.gaps_off, barmerge.lookahead_on)
+[month_apr, month_apr_high, month_apr_low]  = request.security(syminfo.tickerid, i_timeframe, apr_levels(monthly_apr_length), lookahead=barmerge.lookahead_on)
+if (timeframe.isintraday or timeframe.isdaily or timeframe.isweekly) and monthly_apr > 0
+
+    // show high and low
+    draw_apr_stdev(h3, l3, 0, i_timeframe, month_apr, period_low_color, period_high_color, monthly_apr, "AMR", width_high_low, line_style_high_low)
+
+    // show avg range
+    draw_apr_hilo(month_apr_high, month_apr_low, monthlyRange_stDev, i_timeframe, month_apr, monthly_apr_color_high, monthly_apr_color_low, monthly_apr, "AMR", width_0, line_style_0)
+
+    // show stdev_1
+    if (showStDev_1_M)
+        temp_color1 := color.new(color.from_gradient(1, 0, 3, monthly_apr_color_high, monthly_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(1, 0, 3, monthly_apr_color_low, monthly_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(month_apr_high, month_apr_low, monthlyRange_stDev * stDev_1, i_timeframe, month_apr, temp_color1, temp_color2, monthly_apr, "AMR", width_1, line_style_1)
+
+    // show stdev_2
+    if (showStDev_2_M)
+        temp_color1 := color.new(color.from_gradient(2, 0, 3, monthly_apr_color_high, monthly_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(2, 0, 3, monthly_apr_color_low, monthly_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(month_apr_high, month_apr_low, monthlyRange_stDev * stDev_2, i_timeframe, month_apr, temp_color1, temp_color2, monthly_apr, "AMR", width_2, line_style_2)
+
+    // show stdev_3
+    if (showStDev_3_M)
+        temp_color1 := color.new(color.from_gradient(3, 0, 3, monthly_apr_color_high, monthly_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(3, 0, 3, monthly_apr_color_low, monthly_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(month_apr_high, month_apr_low, monthlyRange_stDev * stDev_3, i_timeframe, month_apr, temp_color1, temp_color2, monthly_apr, "AMR", width_3, line_style_3)
+
+    // show stdev_4
+    if (showStDev_4_M)
+        temp_color1 := color.new(color.from_gradient(4, 0, 3, monthly_apr_color_high, monthly_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(4, 0, 3, monthly_apr_color_low, monthly_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(month_apr_high, month_apr_low, monthlyRange_stDev * stDev_4, i_timeframe, month_apr, temp_color1, temp_color2, monthly_apr, "AMR", width_4, line_style_4)
+
+    // show stdev_5
+    if (showStDev_5_M)
+        temp_color1 := color.new(color.from_gradient(5, 0, 3, monthly_apr_color_high, monthly_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(5, 0, 3, monthly_apr_color_low, monthly_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(month_apr_high, month_apr_low, monthlyRange_stDev * stDev_5, i_timeframe, month_apr, temp_color1, temp_color2, monthly_apr, "AMR", width_5, line_style_5)
+
+    // show stdev_6
+    if (showStDev_6_M)
+        temp_color1 := color.new(color.from_gradient(6, 0, 3, monthly_apr_color_high, monthly_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(6, 0, 3, monthly_apr_color_low, monthly_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(month_apr_high, month_apr_low, monthlyRange_stDev * stDev_6, i_timeframe, month_apr, temp_color1, temp_color2, monthly_apr, "AMR", width_6, line_style_6)
+
+    // show stdev_7
+    if (showStDev_7_M)
+        temp_color1 := color.new(color.from_gradient(7, 0, 3, monthly_apr_color_high, monthly_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(7, 0, 3, monthly_apr_color_low, monthly_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(month_apr_high, month_apr_low, monthlyRange_stDev * stDev_7, i_timeframe, month_apr, temp_color1, temp_color2, monthly_apr, "AMR", width_7, line_style_7)
+
+    // show stdev_8
+    if (showStDev_8_M)
+        temp_color1 := color.new(color.from_gradient(8, 0, 3, monthly_apr_color_high, monthly_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(8, 0, 3, monthly_apr_color_low, monthly_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(month_apr_high, month_apr_low, monthlyRange_stDev * stDev_8, i_timeframe, month_apr, temp_color1, temp_color2, monthly_apr, "AMR", width_8, line_style_8)    
+
+    // show stdev_9
+    if (showStDev_9_M)
+        temp_color1 := color.new(color.from_gradient(9, 0, 3, monthly_apr_color_high, monthly_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(9, 0, 3, monthly_apr_color_low, monthly_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(month_apr_high, month_apr_low, monthlyRange_stDev * stDev_9, i_timeframe, month_apr, temp_color1, temp_color2, monthly_apr, "AMR", width_9, line_style_9)
+
+    // show stdev_10
+    if (showStDev_10_M)
+        temp_color1 := color.new(color.from_gradient(10, 0, 3, monthly_apr_color_high, monthly_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(10, 0, 3, monthly_apr_color_low, monthly_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(month_apr_high, month_apr_low, monthlyRange_stDev * stDev_10, i_timeframe, month_apr, temp_color1, temp_color2, monthly_apr, "AMR", width_10, line_style_10)  
+
+//
+// Yearly
+//
+i_timeframe := tf_apr4
+[h4, l4, o4] = request.security(ticker, i_timeframe, [high, low, open], barmerge.gaps_off, barmerge.lookahead_on)
+[year_apr, year_apr_high, year_apr_low] = request.security(syminfo.tickerid, i_timeframe, apr_levels(yearly_apr_length), lookahead=barmerge.lookahead_on)
+if yearly_apr > 0
+
+    // show high and low
+    draw_apr_stdev(h4, l3, 0, i_timeframe, year_apr, period_low_color, period_high_color, yearly_apr, "AYR", width_high_low, line_style_high_low)
+
+    // show avg range
+    draw_apr_hilo(year_apr_high, year_apr_low, yearlyRange_stDev, i_timeframe, year_apr, yearly_apr_color_high, yearly_apr_color_low, yearly_apr, "AYR", width_0, line_style_0)
+
+    // show stdev_1
+    if (showStDev_1_Y)
+        temp_color1 := color.new(color.from_gradient(1, 0, 3, yearly_apr_color_high, yearly_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(1, 0, 3, yearly_apr_color_low, yearly_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(year_apr_high, year_apr_low, yearlyRange_stDev * stDev_1, i_timeframe, year_apr, temp_color1, temp_color2, yearly_apr, "AYR", width_1, line_style_1)
+
+    // show stdev_2
+    if (showStDev_2_Y)
+        temp_color1 := color.new(color.from_gradient(2, 0, 3, yearly_apr_color_high, yearly_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(2, 0, 3, yearly_apr_color_low, yearly_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(year_apr_high, year_apr_low, yearlyRange_stDev * stDev_2, i_timeframe, year_apr, temp_color1, temp_color2, yearly_apr, "AYR", width_2, line_style_2)
+
+    // show stdev_3
+    if (showStDev_3_Y)
+        temp_color1 := color.new(color.from_gradient(3, 0, 3, yearly_apr_color_high, yearly_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(3, 0, 3, yearly_apr_color_low, yearly_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(year_apr_high, year_apr_low, yearlyRange_stDev * stDev_3, i_timeframe, year_apr, temp_color1, temp_color2, yearly_apr, "AYR", width_3, line_style_3)
+
+    // show stdev_4
+    if (showStDev_4_Y)
+        temp_color1 := color.new(color.from_gradient(4, 0, 3, yearly_apr_color_high, yearly_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(4, 0, 3, yearly_apr_color_low, yearly_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(year_apr_high, year_apr_low, yearlyRange_stDev * stDev_4, i_timeframe, year_apr, temp_color1, temp_color2, yearly_apr, "AYR", width_4, line_style_4)
+
+    // show stdev_5
+    if (showStDev_5_Y)
+        temp_color1 := color.new(color.from_gradient(5, 0, 3, yearly_apr_color_high, yearly_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(5, 0, 3, yearly_apr_color_low, yearly_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(year_apr_high, year_apr_low, yearlyRange_stDev * stDev_5, i_timeframe, year_apr, temp_color1, temp_color2, yearly_apr, "AYR", width_5, line_style_5)
+
+    // show stdev_6
+    if (showStDev_6_Y)
+        temp_color1 := color.new(color.from_gradient(6, 0, 3, yearly_apr_color_high, yearly_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(6, 0, 3, yearly_apr_color_low, yearly_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(year_apr_high, year_apr_low, yearlyRange_stDev * stDev_6, i_timeframe, year_apr, temp_color1, temp_color2, yearly_apr, "AYR", width_6, line_style_6)
+
+    // show stdev_7
+    if (showStDev_7_Y)
+        temp_color1 := color.new(color.from_gradient(7, 0, 3, yearly_apr_color_high, yearly_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(7, 0, 3, yearly_apr_color_low, yearly_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(year_apr_high, year_apr_low, yearlyRange_stDev * stDev_7, i_timeframe, year_apr, temp_color1, temp_color2, yearly_apr, "AYR", width_7, line_style_7)
+
+    // show stdev_8
+    if (showStDev_8_Y)
+        temp_color1 := color.new(color.from_gradient(8, 0, 3, yearly_apr_color_high, yearly_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(8, 0, 3, yearly_apr_color_low, yearly_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(year_apr_high, year_apr_low, yearlyRange_stDev * stDev_8, i_timeframe, year_apr, temp_color1, temp_color2, yearly_apr, "AYR", width_8, line_style_8)    
+
+    // show stdev_9
+    if (showStDev_9_Y)
+        temp_color1 := color.new(color.from_gradient(9, 0, 3, yearly_apr_color_high, yearly_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(9, 0, 3, yearly_apr_color_low, yearly_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(year_apr_high, year_apr_low, yearlyRange_stDev * stDev_9, i_timeframe, year_apr, temp_color1, temp_color2, yearly_apr, "AYR", width_9, line_style_9)
+
+    // show stdev_10
+    if (showStDev_10_Y)
+        temp_color1 := color.new(color.from_gradient(10, 0, 3, yearly_apr_color_high, yearly_apr_color_high), scaledLineVisibility)
+        temp_color2 := color.new(color.from_gradient(10, 0, 3, yearly_apr_color_low, yearly_apr_color_low), scaledLineVisibility)
+        draw_apr_stdev(year_apr_high, year_apr_low, yearlyRange_stDev * stDev_10, i_timeframe, year_apr, temp_color1, temp_color2, yearly_apr, "AYR", width_10, line_style_10)  
+
+
+
+
+// array<float> array_stdev  = array.from(stDev_1, stDev_2, stDev_3, stDev_4, stDev_5, stDev_6, stDev_7, stDev_8, stDev_9, stDev_10)
+// array<bool> array_stdev_y = array.from(showStDev_1_Y, showStDev_2_Y, showStDev_3_Y, showStDev_4_Y, showStDev_5_Y, showStDev_6_Y, showStDev_7_Y, showStDev_8_Y, showStDev_9_Y, showStDev_10_Y)
+
+// f_draw_range(p_array_stdev, p_array_bool, p_colorhigh, p_colorlow, p_text) =>
+
+//     i_timeframe = custom_tf
+//     intervalHigh  = request.security(ticker, i_timeframe, high, barmerge.gaps_off, barmerge.lookahead_on)
+//     intervalLow  = request.security(ticker, i_timeframe, low, barmerge.gaps_off, barmerge.lookahead_on)
+//     intervalOpen = request.security(ticker, i_timeframe, open, barmerge.gaps_off, barmerge.lookahead_on)
+//     [custom_apr, custom_apr_high, custom_apr_low]  = request.security(syminfo.tickerid, i_timeframe, apr_levels(customly_apr_length), lookahead=barmerge.lookahead_on)
+//     // show high and low
+//     draw_apr_stdev(intervalHigh, intervalLow, 0, i_timeframe, custom_apr, p_colorlow, p_colorhigh, customly_apr, p_text, width_high_low, line_style_high_low)
+//     //label.new(bar_index, 5200, "t")
+//     // show avg range
+//     draw_apr_hilo(custom_apr_high, custom_apr_low, customlyRange_stDev, i_timeframe, custom_apr, customly_apr_color_high, customly_apr_color_low, customly_apr, p_text, width_0, line_style_0)
+
+
+//     for [index, value] in p_array_bool
+    
+//         //label.new(bar_index, 5200 + i*10, str.tostring(array.get(p_array_bool, i)) )
+        
+//         if (array.get(p_array_bool, index) == true)
+//             temp_color1 = color.new(color.from_gradient(1, 0, 3, customly_apr_color_high, customly_apr_color_high), scaledLineVisibility)
+//             temp_color2 = color.new(color.from_gradient(1, 0, 3, customly_apr_color_low, customly_apr_color_low), scaledLineVisibility)
+//             //label.new(bar_index, 5200 + index * 10, str.tostring(customlyRange_stDev * array.get(p_array_stdev, index)) )
+//             draw_apr_stdev(custom_apr_high, custom_apr_low, customlyRange_stDev * array.get(p_array_stdev, index), i_timeframe, custom_apr, temp_color1, temp_color2, customly_apr, p_text, width_1, line_style_1)
